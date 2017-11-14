@@ -551,7 +551,7 @@ mod error_chain;
 mod quick_main;
 pub use quick_main::ExitCode;
 mod backtrace;
-#[cfg(feature = "example_generated")]
+#[cfg(any(test, feature = "example_generated"))]
 pub mod example_generated;
 pub use backtrace::Backtrace;
 #[doc(hidden)]
@@ -603,10 +603,9 @@ pub trait ChainedError: error::Error + Send + 'static {
 
     /// Constructs a chained error from another error and a kind, and generates a backtrace.
     fn with_chain<E, K>(error: E, kind: K) -> Self
-    where
-        Self: Sized,
-        E: ::std::error::Error + Send + 'static,
-        K: Into<Self::ErrorKind>;
+        where Self: Sized,
+              E: ::std::error::Error + Send + Sync + 'static,
+              K: Into<Self::ErrorKind>;
 
     /// Returns the kind of the error.
     fn kind(&self) -> &Self::ErrorKind;
@@ -675,7 +674,7 @@ where
 #[allow(unknown_lints, bare_trait_objects)]
 pub struct State {
     /// Next error in the error chain.
-    pub next_error: Option<Box<error::Error + Send>>,
+    pub next_error: Option<Box<error::Error + Send + Sync>>,
     /// Backtrace for the current error.
     pub backtrace: InternalBacktrace,
 }
@@ -692,7 +691,7 @@ impl Default for State {
 impl State {
     /// Creates a new State type
     #[allow(unknown_lints, bare_trait_objects)]
-    pub fn new<CE: ChainedError>(e: Box<error::Error + Send>) -> State {
+    pub fn new<CE: ChainedError>(e: Box<error::Error + Send + Sync>) -> State {
         let backtrace = CE::extract_backtrace(&*e).unwrap_or_else(InternalBacktrace::new);
         State {
             next_error: Some(e),
